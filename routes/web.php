@@ -178,7 +178,8 @@ Route::post('/analizar/{id}', function (Request $request, $id) {
         if (! $respuesta->successful()) {
             return response(
                 'No se pudo consultar el encuentro. Código API: '
-                . $respuesta->status(),
+                . $respuesta->status()
+                . '. Espera un minuto e intenta otra vez.',
                 502
             );
         }
@@ -233,29 +234,33 @@ Route::post('/analizar/{id}', function (Request $request, $id) {
                 . $desde . '_'
                 . $hasta;
 
-            $historialDatos = Cache::remember(
-                $claveHistorial,
-                now()->addMinutes(10),
-                function () use ($consultar, $equipo, $desde, $hasta) {
-                    $respuesta = $consultar('/games', [
-                        'team_ids' => [(int) $equipo['id']],
-                        'start_date' => $desde,
-                        'end_date' => $hasta,
-                        'per_page' => 100,
-                    ]);
-
-                    return $respuesta->successful()
-                        ? $respuesta->json()
-                        : null;
-                }
-            );
+            $historialDatos = Cache::get($claveHistorial);
 
             if (! is_array($historialDatos)) {
-                return response(
-                    'No se pudo consultar el historial de '
-                    . $equipo['full_name']
-                    . '. La API no respondió correctamente.',
-                    502
+                $respuestaHistorial = $consultar('/games', [
+                    'team_ids' => [(int) $equipo['id']],
+                    'start_date' => $desde,
+                    'end_date' => $hasta,
+                    'per_page' => 100,
+                ]);
+
+                if (! $respuestaHistorial->successful()) {
+                    return response(
+                        'No se pudo consultar el historial de '
+                        . $equipo['full_name']
+                        . '. Código API: '
+                        . $respuestaHistorial->status()
+                        . '. Espera un minuto e intenta otra vez.',
+                        502
+                    );
+                }
+
+                $historialDatos = $respuestaHistorial->json();
+
+                Cache::put(
+                    $claveHistorial,
+                    $historialDatos,
+                    now()->addMinutes(10)
                 );
             }
 
