@@ -288,9 +288,7 @@
                                 Analizar partido
                             </button>
 
-                            <p class="nota">
-                                El cálculo todavía está pendiente de conectar.
-                            </p>
+                          
                         </form>
                     </details>
                 @else
