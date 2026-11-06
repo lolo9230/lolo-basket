@@ -426,4 +426,21 @@ Route::post('/analizar/{id}', function (Request $request, $id) {
             . '<section><h2>Método y limitaciones</h2>'
             . '<p>Los puntos de cada equipo se estiman promediando su '
             . 'anotación reciente y los puntos recibidos por su rival.</p>'
-            . '<p>No ajusta por lesiones, alineaciones, fuerza de los rivales,
+            . '<p>No ajusta por lesiones, alineaciones, fuerza de los rivales, '
+            . 'ritmo, descanso ni ventaja de localía. Puede mezclar resultados '
+            . 'de distintas competiciones o fases disponibles en la API. '
+            . 'Los resultados históricos pueden incluir prórroga.</p>'
+            . '<p>Una diferencia frente a la línea no demuestra ventaja '
+            . 'estadística. El método no está validado y puede fallar.</p>'
+            . '</section></main></body></html>';
+
+        return response($html);
+
+    } catch (ConnectionException $error) {
+        return response(
+            'No se pudo conectar con la API para realizar el análisis. '
+            . 'Vuelve a la lista e intenta más tarde.',
+            502
+        );
+    }
+})->whereNumber('id');
