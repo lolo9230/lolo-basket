@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Http\Request;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Support\Facades\Cache;
 
 Route::get('/', function () {
     return view('welcome');
@@ -227,12 +228,23 @@ Route::post('/analizar/{id}', function (Request $request, $id) {
         foreach (['home_team', 'visitor_team'] as $lado) {
             $equipo = $partido[$lado];
 
-            $historial = $consultar('/games', [
-                'team_ids' => [(int) $equipo['id']],
-                'start_date' => $desde,
-                'end_date' => $hasta,
-                'per_page' => 100,
-            ]);
+            $claveHistorial = 'balldontlie_historial_'
+                . $equipo['id'] . '_'
+                . $desde . '_'
+                . $hasta;
+
+            $historial = Cache::remember(
+                $claveHistorial,
+                now()->addMinutes(10),
+                function () use ($consultar, $equipo, $desde, $hasta) {
+                    return $consultar('/games', [
+                        'team_ids' => [(int) $equipo['id']],
+                        'start_date' => $desde,
+                        'end_date' => $hasta,
+                        'per_page' => 100,
+                    ]);
+                }
+            );
 
             if (! $historial->successful()) {
                 return response(
