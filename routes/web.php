@@ -233,35 +233,39 @@ Route::post('/analizar/{id}', function (Request $request, $id) {
                 . $desde . '_'
                 . $hasta;
 
-            $historial = Cache::remember(
+            $historialDatos = Cache::remember(
                 $claveHistorial,
                 now()->addMinutes(10),
                 function () use ($consultar, $equipo, $desde, $hasta) {
-                    return $consultar('/games', [
+                    $respuesta = $consultar('/games', [
                         'team_ids' => [(int) $equipo['id']],
                         'start_date' => $desde,
                         'end_date' => $hasta,
                         'per_page' => 100,
                     ]);
+
+                    return $respuesta->successful()
+                        ? $respuesta->json()
+                        : null;
                 }
             );
 
-            if (! $historial->successful()) {
+            if (! is_array($historialDatos)) {
                 return response(
                     'No se pudo consultar el historial de '
                     . $equipo['full_name']
-                    . '. Código API: ' . $historial->status(),
+                    . '. La API no respondió correctamente.',
                     502
                 );
             }
 
-            $registros = $historial->json('data');
+            $registros = $historialDatos['data'] ?? null;
 
             if (! is_array($registros)) {
                 return response('Historial con formato inesperado.', 502);
             }
 
-            if ($historial->json('meta.next_cursor') !== null) {
+            if (($historialDatos['meta']['next_cursor'] ?? null) !== null) {
                 return response(
                     'El historial tiene más páginas. Se detuvo el análisis '
                     . 'para no usar una muestra incompleta.',
@@ -422,21 +426,4 @@ Route::post('/analizar/{id}', function (Request $request, $id) {
             . '<section><h2>Método y limitaciones</h2>'
             . '<p>Los puntos de cada equipo se estiman promediando su '
             . 'anotación reciente y los puntos recibidos por su rival.</p>'
-            . '<p>No ajusta por lesiones, alineaciones, fuerza de los rivales, '
-            . 'ritmo, descanso ni ventaja de localía. Puede mezclar resultados '
-            . 'de distintas competiciones o fases disponibles en la API. '
-            . 'Los resultados históricos pueden incluir prórroga.</p>'
-            . '<p>Una diferencia frente a la línea no demuestra ventaja '
-            . 'estadística. El método no está validado y puede fallar.</p>'
-            . '</section></main></body></html>';
-
-        return response($html);
-
-    } catch (ConnectionException $error) {
-        return response(
-            'No se pudo conectar con la API para realizar el análisis. '
-            . 'Vuelve a la lista e intenta más tarde.',
-            502
-        );
-    }
-})->whereNumber('id');
+            . '<p>No ajusta por lesiones, alineaciones, fuerza de los rivales,
